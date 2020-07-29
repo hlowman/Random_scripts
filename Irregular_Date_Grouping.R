@@ -1,3 +1,9 @@
+# The following code was initially created by Owen Liu (UCSB) and edited before being sent to Jacob Kaplan (CA State Waterboards).
+# This code is intended to be used to group a dataset with samplings performed at irregular intervals.
+# Samples taken within 4 days of one another are intended to be grouped together.
+# At the close of that window, the next window begins at the next earliest sampling date, and so on.
+# Windows may have 1-4 sample dates in them, but the goal is then to report the aggregated sample value based on the assigned window.
+
 library(tidyverse)
 library(lubridate)
 
