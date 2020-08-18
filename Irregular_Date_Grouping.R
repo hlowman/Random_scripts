@@ -144,12 +144,12 @@ calc_4days2 <- function(d,date_vec){
 # need an iterator now, to build each piece of the group key at a time
 
 for(i in seq_along(dummy3$counter)){
-  groups_key2 <- tibble()
-  current_p2 <- 1
-  current_d2 <- dummy3$DATE[1]
-  current_date_vec2 <- sort(dummy3$DATE)
-  
+    groups_key2 <- tibble()
+    current_p2 <- 1
+    current_d2 <- dummy3$DATE[1]
+    current_date_vec2 <- sort(dummy3$DATE)
   for(j in seq_along(dummy3$DATE)){
+    
   #if we've already assigned all the dates, stop
     if(length(current_date_vec2)==0) 
       break
@@ -169,3 +169,36 @@ for(i in seq_along(dummy3$counter)){
 # can add the grouping key back to the original data
 dummy_with_key <- dummy3 %>% 
   left_join(groups_key2)
+
+# Starting *somewhat* over and trying to use the map() function from the purrr package.
+
+# First, I'm going to create a new function for use in the map() portion, using Owen's working code from above, which worked on a singular time series of dates (with no replicates).
+
+create_date_groups <- function(LOE_data){
+  groups_key <- tibble()
+  current_p <- 1
+  current_d <- LOE_data$DATE[1]
+  current_date_vec <- sort(LOE_data$DATE)
+  for(i in seq_along(LOE_data$DATE)){
+    #if we've already assigned all the dates, stop
+    if(length(current_date_vec)==0) break
+    # otherwise build a group of dates
+    grp <- calc_4days2(current_d,current_date_vec)
+    # add the group of dates to our key
+    groups_key <- bind_rows(groups_key,tibble(date=grp,group=current_p))
+    # remove dates in the group from the pool of possible dates
+    current_date_vec <- setdiff(current_date_vec,grp) %>% as_date()
+    # iterate our counters
+    current_p <- current_p + 1
+    current_d <- current_date_vec[1]
+  }
+  # add data onto final dataset
+  LOE_data %>% 
+    left_join(groups_key2)
+}
+
+dummy3_with_key <- dummy3 %>% # Take the original dataframe
+  split(.$counter) %>% # Splits by "unique" datasets within the larger dataset (matching site/matrix/analyte)
+  map(create_date_groups) 
+
+str(dummy3_with_key)
