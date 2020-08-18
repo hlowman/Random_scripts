@@ -171,9 +171,45 @@ dummy_with_key <- dummy3 %>%
   left_join(groups_key2)
 
 # Starting *somewhat* over and trying to use the map() function from the purrr package.
+# THE BELOW CODE WORKS!!! So, I've cleaned it up for Jacob and sent it to him as a separate file.
 
-# First, I'm going to create a new function for use in the map() portion, using Owen's working code from above, which worked on a singular time series of dates (with no replicates).
+#### Final version ####
 
+# Attach necessary packages.
+
+library(tidyverse) # purrr included in tidyverse.
+library(lubridate)
+
+# Import and edit the dummy dataset.
+
+Dummy <- read_csv("sample_df_wide.csv") # import from csv.
+
+Dummy1 <- Dummy[1:14,] # edit out the unnecessary lines.
+
+# create some columns as factors so that grouping is clean below.
+# then group by said columns and create a "counter" column to assign a number to each of these groupings.
+Dummy2 <- Dummy1 %>%
+  mutate(waterbody = as.factor(Waterbody)) %>%
+  mutate(matrix = as.factor(Matrix)) %>%
+  mutate(analyte = as.factor(Analyte)) %>%
+  mutate(DATE = mdy(date)) %>%
+  # then group by said columns and create a "counter" column to assign a number to each of these groupings.
+  group_by(waterbody, matrix, analyte) %>%
+  mutate(counter = cur_group_id()) %>%
+  mutate(date = DATE) %>%
+  ungroup()
+
+# owen's function for date aggregation
+# function takes a current date, and a vector of dates to match
+# and finds any dates within the next four days
+calc_4days <- function(d,date_vec){
+  diffs <- time_length(d %--% date_vec,"days")
+  date_vec[diffs<=4]
+}
+
+# create a new function for application in the map() portion, using Owen's working code.
+# the only input necessary is a dataframe (LOE_data)
+# note this function spits out a full dataframe, hence why we need to use the map_dfr() function below
 create_date_groups <- function(LOE_data){
   groups_key <- tibble()
   current_p <- 1
@@ -183,7 +219,7 @@ create_date_groups <- function(LOE_data){
     #if we've already assigned all the dates, stop
     if(length(current_date_vec)==0) break
     # otherwise build a group of dates
-    grp <- calc_4days2(current_d,current_date_vec)
+    grp <- calc_4days(current_d,current_date_vec)
     # add the group of dates to our key
     groups_key <- bind_rows(groups_key,tibble(date=grp,group=current_p))
     # remove dates in the group from the pool of possible dates
@@ -194,11 +230,14 @@ create_date_groups <- function(LOE_data){
   }
   # add data onto final dataset
   LOE_data %>% 
-    left_join(groups_key2)
+    left_join(groups_key)
 }
 
-dummy3_with_key <- dummy3 %>% # Take the original dataframe
-  split(.$counter) %>% # Splits by "unique" datasets within the larger dataset (matching site/matrix/analyte)
-  map(create_date_groups) 
+# use the function create_date_groups
+Dummy2_with_key <- Dummy2 %>% # Take the original dataframe and then...
+  split(.$counter) %>% # Splits by "unique" datasets within the larger dataset (using the counter column) and then...
+  map_dfr(create_date_groups) # Map our function create_date_groups onto the Dummy2 dataset that's been split by counter.
 
-str(dummy3_with_key)
+str(Dummy2_with_key)
+
+# End of script.
